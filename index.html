@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0"
+    />
+    <title>Tulip with Butterflies</title>
+    <style>
+      /* Fullscreen canvas with a gentle, graceful pastel radial gradient background */
+      body {
+        margin: 0;
+        overflow: hidden;
+        /* A soft radial gradient emanating from the top-center */
+        background: radial-gradient(circle at top center, #fff1f5, #ffc1cc);
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      }
+      canvas {
+        display: block;
+      }
+      /* UI styling for the buttons */
+      #ui {
+        position: absolute;
+        top: 10px;
+        left: 10px;
+        z-index: 100;
+      }
+      #ui button {
+        font-size: 16px;
+        padding: 8px 16px;
+        margin-right: 8px;
+        border: none;
+        border-radius: 8px;
+        background: linear-gradient(135deg, #ffc1cc, #fff1f5);
+        color: #333;
+        cursor: pointer;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.15);
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+      }
+      #ui button:hover {
+        transform: scale(1.05);
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+      }
+    </style>
+  </head>
+  <body>
+    <!-- UI buttons for adding/subtracting butterflies -->
+    <div id="ui">
+      <button id="minusBtn">–</button>
+      <button id="plusBtn">+</button>
+    </div>
+    <!-- Main Script -->
+    <script type="module">
+      import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.module.js";
+
+      // ===============================
+      // Butterfly Class & Helper Function
+      // ===============================
+      class Butterfly {
+        /**
+         * @param {THREE.Scene} scene - The Three.js scene.
+         * @param {THREE.Vector3} start - The starting position of the butterfly.
+         * @param {THREE.Vector3} target - The target position (near the tulip's petals).
+         * @param {number} period - The duration (in seconds) for one complete flight cycle.
+         */
+        constructor(scene, start, target, period) {
+          this.start = start.clone();
+          this.target = target.clone();
+          this.period = period;
+          this.phase = Math.random() * period; // Randomize starting phase
+
+          // Create a group for the butterfly parts.
+          this.group = new THREE.Group();
+
+          // --- Create the Body ---
+          const bodyGeom = new THREE.SphereGeometry(0.05, 8, 8);
+          const bodyMat = new THREE.MeshStandardMaterial({ color: 0x000000 });
+          const body = new THREE.Mesh(bodyGeom, bodyMat);
+          this.group.add(body);
+
+          // --- Create the Wings ---
+          const wingWidth = 0.3;
+          const wingHeight = 0.5;
+          const wingMat = new THREE.MeshStandardMaterial({
+            color: 0xffaaff,
+            side: THREE.DoubleSide,
+            transparent: true,
+            opacity: 0.9,
+          });
+
+          // Right Wing
+          const wingGeomRight = new THREE.PlaneGeometry(wingWidth, wingHeight);
+          wingGeomRight.translate(wingWidth / 2, 0, 0); // Pivot at left edge
+          this.rightWing = new THREE.Mesh(wingGeomRight, wingMat);
+          this.rightWing.position.set(0, 0, 0);
+          this.group.add(this.rightWing);
+
+          // Left Wing
+          const wingGeomLeft = new THREE.PlaneGeometry(wingWidth, wingHeight);
+          wingGeomLeft.translate(-wingWidth / 2, 0, 0); // Pivot at right edge
+          this.leftWing = new THREE.Mesh(wingGeomLeft, wingMat);
+          this.leftWing.position.set(0, 0, 0);
+          this.group.add(this.leftWing);
+
+          // Add the butterfly group to the scene.
+          scene.add(this.group);
+        }
+
+        /**
+         * Updates the butterfly's position along a natural flight path and animates its wing flapping.
+         * @param {number} time - Elapsed time in seconds.
+         */
+        update(time) {
+          // Normalized parameter (t) for the flight cycle [0,1]
+          let t = ((time + this.phase) % this.period) / this.period;
+
+          // Compute a linear interpolation between start and target.
+          const pos = new THREE.Vector3().lerpVectors(this.start, this.target, t);
+
+          // Add a sinusoidal offset perpendicular to the flight direction.
+          const direction = new THREE.Vector3()
+            .subVectors(this.target, this.start)
+            .normalize();
+          const perp = new THREE.Vector3()
+            .crossVectors(direction, new THREE.Vector3(0, 1, 0))
+            .normalize();
+          const offsetAmplitude = 0.5;
+          const offset = perp.multiplyScalar(Math.sin(t * Math.PI * 2) * offsetAmplitude);
+          pos.add(offset);
+
+          // Add a small vertical oscillation.
+          pos.y += 0.2 * Math.sin(t * Math.PI * 4);
+
+          // Update butterfly position.
+          this.group.position.copy(pos);
+
+          // Determine forward velocity for proper orientation.
+          const t2 = ((time + this.phase + 0.01) % this.period) / this.period;
+          const pos2 = new THREE.Vector3().lerpVectors(this.start, this.target, t2);
+          const offset2 = perp
+            .clone()
+            .multiplyScalar(Math.sin(t2 * Math.PI * 2) * offsetAmplitude);
+          pos2.add(offset2);
+          pos2.y += 0.2 * Math.sin(t2 * Math.PI * 4);
+          const vel = new THREE.Vector3().subVectors(pos2, pos).normalize();
+
+          if (vel.lengthSq() > 0.0001) {
+            const lookTarget = new THREE.Vector3().addVectors(pos, vel);
+            this.group.lookAt(lookTarget);
+          }
+
+          // Wing flapping animation.
+          const flapSpeed = 20; // radians per second
+          const flapAmplitude = Math.PI / 8; // max wing rotation angle
+          const wingAngle = Math.sin(time * flapSpeed) * flapAmplitude;
+          this.leftWing.rotation.z = wingAngle;
+          this.rightWing.rotation.z = -wingAngle;
+        }
+      }
+
+      /**
+       * Creates a single butterfly.
+       * @param {THREE.Scene} scene - The Three.js scene.
+       * @param {THREE.Vector3} target - The target position for the butterfly (near the tulip's petals).
+       * @returns {Butterfly} A new Butterfly instance.
+       */
+      function createButterfly(scene, target) {
+        const angle = Math.random() * Math.PI * 2;
+        const radius = 6 + Math.random() * 4; // Start 6-10 units away
+        const start = new THREE.Vector3(
+          Math.cos(angle) * radius,
+          3 + (Math.random() - 0.5) * 2, // slight vertical variation
+          Math.sin(angle) * radius
+        );
+        const period = 10 + Math.random() * 5; // Flight cycle between 10 and 15 seconds
+        return new Butterfly(scene, start, target, period);
+      }
+
+      // ===============================
+      // Scene, Camera & Renderer Setup
+      // ===============================
+      const scene = new THREE.Scene();
+      scene.background = new THREE.Color(0xFBA2AC);
+
+      const camera = new THREE.PerspectiveCamera(
+        90,
+        window.innerWidth / window.innerHeight,
+        0.1,
+        100
+      );
+      camera.position.set(0, 4, 6.5);
+      camera.lookAt(new THREE.Vector3(0, 4, 0));
+
+      const renderer = new THREE.WebGLRenderer({ antialias: true });
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      renderer.setPixelRatio(window.devicePixelRatio);
+      document.body.appendChild(renderer.domElement);
+
+      // Responsive resize
+      window.addEventListener("resize", () => {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+      });
+
+      // ===============================
+      // Lighting
+      // ===============================
+      const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+      scene.add(ambientLight);
+
+      const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
+      directionalLight.position.set(5, 5, 5);
+      scene.add(directionalLight);
+
+      // ===============================
+      // Tulip Construction
+      // ===============================
+      const tulipGroup = new THREE.Group();
+      scene.add(tulipGroup);
+
+      // Stem
+      const stemGeometry = new THREE.CylinderGeometry(0.05, 0.05, 3, 16);
+      const stemMaterial = new THREE.MeshStandardMaterial({ color: 0x228b22 });
+      const stem = new THREE.Mesh(stemGeometry, stemMaterial);
+      stem.position.y = 1.5; // Base at y=0
+      tulipGroup.add(stem);
+
+      // Petals with a cellophane look
+      const petalShape = new THREE.Shape();
+      petalShape.moveTo(0, 0);
+      petalShape.quadraticCurveTo(0.5, 1, 0, 2);
+      petalShape.quadraticCurveTo(-0.5, 1, 0, 0);
+
+      const extrudeSettings = {
+        depth: 0.1,
+        bevelEnabled: true,
+        bevelSegments: 2,
+        steps: 2,
+        bevelSize: 0.05,
+        bevelThickness: 0.05,
+      };
+
+      const petalGeometry = new THREE.ExtrudeGeometry(petalShape, extrudeSettings);
+      const petalMaterial = new THREE.MeshPhysicalMaterial({
+        color: 0xff1493,
+        side: THREE.DoubleSide,
+        transparent: true,
+        opacity: 0.7,
+        transmission: 0.9,
+        roughness: 0.1,
+        clearcoat: 1,
+        clearcoatRoughness: 0.05,
+      });
+
+      const petalCount = 5;
+      for (let i = 0; i < petalCount; i++) {
+        const petal = new THREE.Mesh(petalGeometry, petalMaterial);
+        petal.position.set(0, 3, 0);
+        petal.rotation.y = (Math.PI * 2 / petalCount) * i;
+        tulipGroup.add(petal);
+      }
+
+      // Leaves
+      const leafGeometry = new THREE.ExtrudeGeometry(petalShape, extrudeSettings);
+      const leafMaterial = new THREE.MeshPhysicalMaterial({
+        color: 0x32cd32,
+        side: THREE.DoubleSide,
+        transparent: true,
+        opacity: 0.8,
+        transmission: 0.8,
+        roughness: 0.2,
+      });
+
+      const leaf1 = new THREE.Mesh(leafGeometry, leafMaterial);
+      leaf1.scale.set(0.8, 0.8, 0.8);
+      leaf1.position.set(-0.3, 1, 0);
+      leaf1.rotation.z = Math.PI / 4;
+      tulipGroup.add(leaf1);
+
+      const leaf2 = new THREE.Mesh(leafGeometry, leafMaterial);
+      leaf2.scale.set(0.8, 0.8, 0.8);
+      leaf2.position.set(0.3, 1, 0);
+      leaf2.rotation.z = -Math.PI / 4;
+      tulipGroup.add(leaf2);
+
+      // Scale and lower the tulip so that its stem's base is near the bottom edge.
+      tulipGroup.scale.set(2, 2, 2);
+      tulipGroup.position.y = -1;
+
+      // ===============================
+      // Butterfly Management
+      // ===============================
+      const butterflyTarget = new THREE.Vector3(0, 5, 0); // Target near the tulip's petals
+      let butterflies = [];
+      // Start with 2 butterflies
+      for (let i = 0; i < 2; i++) {
+        butterflies.push(createButterfly(scene, butterflyTarget));
+      }
+
+      // UI Buttons: Add and subtract butterflies
+      const plusBtn = document.getElementById("plusBtn");
+      const minusBtn = document.getElementById("minusBtn");
+
+      plusBtn.addEventListener("click", () => {
+        if (butterflies.length < 10) {
+          const newButterfly = createButterfly(scene, butterflyTarget);
+          butterflies.push(newButterfly);
+        } else {
+          console.log("Maximum number of butterflies (10) reached.");
+        }
+      });
+
+      minusBtn.addEventListener("click", () => {
+        if (butterflies.length > 1) {
+          const butterflyToRemove = butterflies.pop();
+          scene.remove(butterflyToRemove.group);
+        } else {
+          console.log("At least 1 butterfly must remain.");
+        }
+      });
+
+      // ===============================
+      // Animation Loop
+      // ===============================
+      function animate(time) {
+        requestAnimationFrame(animate);
+        const elapsedTime = time * 0.001;
+        butterflies.forEach((butterfly) => {
+          butterfly.update(elapsedTime);
+        });
+        renderer.render(scene, camera);
+      }
+      animate(0);
+    </script>
+  </body>
+</html>

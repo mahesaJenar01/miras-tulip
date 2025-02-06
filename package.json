@@ -1,0 +1,15 @@
+{
+  "name": "mira_tulip",
+  "version": "1.0.0",
+  "main": "main.js",
+  "scripts": {
+    "start": "npx vite"
+  }, 
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "three": "^0.173.0"
+  }
+}

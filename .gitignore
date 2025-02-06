@@ -1,0 +1,24 @@
+# Ignore system files
+.DS_Store
+Thumbs.db
+
+# Ignore Node.js dependencies (if using a local server)
+node_modules/
+package-lock.json
+yarn.lock
+
+# Ignore compiled or temporary files
+dist/
+build/
+.cache/
+.temp/
+.vscode/
+.idea/
+
+# Ignore Git files
+*.log
+*.bak
+*.swp
+
+# Ignore local environment files (if any)
+.env
