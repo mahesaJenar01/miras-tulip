@@ -15,14 +15,27 @@
         /* A soft radial gradient emanating from the top-center */
         background: radial-gradient(circle at top center, #fff1f5, #ffc1cc);
         font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        position: relative;
       }
       canvas {
         display: block;
       }
+      /* Title styling */
+      #title {
+        position: absolute;
+        top: 20px;
+        width: 100%;
+        text-align: center;
+        font-size: 36px;
+        font-weight: bold;
+        color: #d6336c;
+        text-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+        z-index: 101;
+      }
       /* UI styling for the buttons */
       #ui {
         position: absolute;
-        top: 10px;
+        top: 70px;
         left: 10px;
         z-index: 100;
       }
@@ -45,6 +58,8 @@
     </style>
   </head>
   <body>
+    <!-- Page Title -->
+    <div id="title">Mira's Tulip</div>
     <!-- UI buttons for adding/subtracting butterflies -->
     <div id="ui">
       <button id="minusBtn">–</button>
@@ -184,7 +199,7 @@
       scene.background = new THREE.Color(0xFBA2AC);
 
       const camera = new THREE.PerspectiveCamera(
-        90,
+        98,
         window.innerWidth / window.innerHeight,
         0.1,
         100
