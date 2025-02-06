@@ -327,9 +327,15 @@
       function animate(time) {
         requestAnimationFrame(animate);
         const elapsedTime = time * 0.001;
+
+        // Update each butterfly
         butterflies.forEach((butterfly) => {
           butterfly.update(elapsedTime);
         });
+
+        // Gently spin the whole tulip group (flower) around its y-axis.
+        tulipGroup.rotation.y += 0.007;
+
         renderer.render(scene, camera);
       }
       animate(0);
